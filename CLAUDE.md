@@ -29,7 +29,9 @@ Mobile app for the British Deer Society: membership/auth, news and notifications
 
 Follow a standard testing pyramid — many fast unit tests, fewer component tests, fewer still contract tests — rather than relying on end-to-end tests for coverage.
 
+- **Tests evolve with the feature.** Add and update tests as each vertical slice/story is built, not as a follow-up pass afterwards — a story isn't done until its tests exist and pass alongside it. When a model or behaviour changes, its existing tests must be updated in the same change, not left stale.
 - **Unit tests** (bulk of the suite): domain logic and use-cases tested in isolation against fake implementations of the four core interfaces. Possible only because of the dependency inversion above.
+- **Entity lifecycle tests.** For every model in the domain (member, field record, photo, news article, etc.), cover its full lifecycle — create, update, delete — and do this throughout the model hierarchy, not just at the root: relationship changes (e.g. a member's region reassignment, a field record's type change) and child record changes (e.g. deleting/updating a field record's attached photos, cascading effects where a parent-child relationship exists) all need their own tests, not just the parent entity in isolation.
 - **Component tests**: Flutter widget tests for individual screens/widgets, run locally against the same fakes — no real backend involved.
 - **Contract tests**: verify each concrete adapter (Supabase, OneSignal, MapLibre) actually satisfies its domain interface's contract, run against the local Supabase stack (`supabase start`) rather than a live project.
 - **Priority coverage** — areas the design doc flags as likely to fail silently rather than crash:
