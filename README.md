@@ -2,7 +2,7 @@
 
 Planning and design repository for a mobile app covering membership/authenticated access, news and notifications, deer survey and stalking data collection, GPS tagging, and reporting/analysis for cull and deer management insight.
 
-**Status:** Design/scoping stage — no application code yet. See [BDS_Mobile_App_Technical_Design_Overview.md](BDS_Mobile_App_Technical_Design_Overview.md) for the full technical design, confirmed decisions, and suggested build order.
+**Status:** Design/scoping stage — no application code yet. See [documents/BDS_Mobile_App_Technical_Design_Overview.md](documents/BDS_Mobile_App_Technical_Design_Overview.md) for the full technical design, confirmed decisions, and suggested build order.
 
 ## Confirmed stack
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for working in this repository. Full context: [BDS_Mobile_App_Technical_Design_Overview.md](BDS_Mobile_App_Technical_Design_Overview.md).
+Guidance for working in this repository. Full context: [documents/BDS_Mobile_App_Technical_Design_Overview.md](documents/BDS_Mobile_App_Technical_Design_Overview.md).
 
 ## Project
 
