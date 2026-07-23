@@ -1,19 +1,20 @@
 -- membership_level: lookup table for tiers of membership (individual, family,
 -- etc.) — same rationale as address_type: reference data BDS staff may extend
--- without a deploy. Values here are placeholders pending BDS's actual tier
--- list, same caveat as members.region.
+-- without a deploy, integer identity id since it's never generated offline.
+-- Values here are placeholders pending BDS's actual tier list, same caveat as
+-- member.region.
 create table membership_level (
-  code text primary key,
+  id integer generated always as identity primary key,
   label text not null
 );
 
 comment on table membership_level is 'Lookup table for membership tiers — placeholder values pending BDS''s actual tier list.';
 
-insert into membership_level (code, label) values
-  ('individual', 'Individual'),
-  ('family', 'Family'),
-  ('junior', 'Junior'),
-  ('life', 'Life');
+insert into membership_level (label) values
+  ('Individual'),
+  ('Family'),
+  ('Junior'),
+  ('Life');
 
 -- membership_period: the membership_level a member held over a bounded date
 -- range. effective_from/effective_to are both required (typically a year).
@@ -24,8 +25,8 @@ create extension if not exists btree_gist;
 
 create table membership_period (
   id uuid primary key default gen_random_uuid(),
-  member_user_id uuid not null references members (user_id) on delete cascade,
-  membership_level_id text not null references membership_level (code),
+  member_id uuid not null references member (id) on delete cascade,
+  membership_level_id integer not null references membership_level (id),
   effective_from date not null,
   effective_to date not null,
   created_at timestamptz not null default now(),
@@ -34,7 +35,7 @@ create table membership_period (
   edited_by uuid references auth.users (id) on delete set null,
   constraint membership_period_valid_range check (effective_to >= effective_from),
   exclude using gist (
-    member_user_id with =,
+    member_id with =,
     daterange(effective_from, effective_to, '[]') with &&
   )
 );
@@ -51,18 +52,18 @@ grant select, insert, update on membership_period to authenticated;
 
 create policy "membership_period_select_own" on membership_period
   for select
-  using (member_user_id = auth.uid());
+  using (member_id = auth.uid());
 
 create policy "membership_period_select_region_coordinator" on membership_period
   for select
-  using (get_my_role() = 'regional_coordinator' and region_of(member_user_id) = get_my_region());
+  using (get_my_role() = 'regional_coordinator' and region_of(member_id) = get_my_region_id());
 
 create policy "membership_period_select_all_national_admin" on membership_period
   for select
   using (get_my_role() = 'national_admin');
 
 -- Membership level/period changes are treated as staff-administered, not
--- self-service, unlike members/person/address where a member can edit their
+-- self-service, unlike member/person/address where a member can edit their
 -- own row — so there is no "update own" policy here, only national admin.
 create policy "membership_period_update_all_national_admin" on membership_period
   for update

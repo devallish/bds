@@ -1,8 +1,8 @@
--- Region-based, three-tier access control per CLAUDE.md: member sees only their own
--- row, regional coordinator sees their region, national admin sees everything.
+-- Region-based, three-tier access control per CLAUDE.md: a member sees only their
+-- own row, regional coordinator sees their region, national admin sees everything.
 --
 -- SECURITY DEFINER + explicit search_path avoids two problems: infinite recursion
--- (a policy on `members` querying `members` directly would recurse into itself),
+-- (a policy on `member` querying `member` directly would recurse into itself),
 -- and search_path hijacking (an unqualified function name resolving to a
 -- caller-controlled schema).
 
@@ -13,30 +13,30 @@ security definer
 set search_path = public
 stable
 as $$
-  select role from members where user_id = auth.uid()
+  select role from member where id = auth.uid()
 $$;
 
-create or replace function public.get_my_region()
-returns text
+create or replace function public.get_my_region_id()
+returns integer
 language sql
 security definer
 set search_path = public
 stable
 as $$
-  select region from members where user_id = auth.uid()
+  select region_id from member where id = auth.uid()
 $$;
 
--- Generalised form of get_my_region(), for policies on other tables (person,
+-- Generalised form of get_my_region_id(), for policies on other tables (person,
 -- address, membership_period) that need to check an arbitrary row's owning
 -- member's region rather than the caller's own.
-create or replace function public.region_of(target_user_id uuid)
-returns text
+create or replace function public.region_of(target_id uuid)
+returns integer
 language sql
 security definer
 set search_path = public
 stable
 as $$
-  select region from members where user_id = target_user_id
+  select region_id from member where id = target_id
 $$;
 
 -- Standing convention: every member-authored table auto-populates edited_at/
@@ -57,8 +57,8 @@ create trigger person_set_edited_metadata
   for each row
   execute function public.set_edited_metadata();
 
-create trigger members_set_edited_metadata
-  before update on members
+create trigger member_set_edited_metadata
+  before update on member
   for each row
   execute function public.set_edited_metadata();
 
@@ -71,7 +71,7 @@ create policy "person_select_own" on person
 
 create policy "person_select_region_coordinator" on person
   for select
-  using (get_my_role() = 'regional_coordinator' and region_of(user_id) = get_my_region());
+  using (get_my_role() = 'regional_coordinator' and region_of(user_id) = get_my_region_id());
 
 create policy "person_select_all_national_admin" on person
   for select
@@ -91,30 +91,30 @@ create policy "person_insert_national_admin" on person
   for insert
   with check (get_my_role() = 'national_admin');
 
-alter table members enable row level security;
+alter table member enable row level security;
 
 -- RLS restricts which rows are visible, but Postgres still requires a
 -- table-level grant before any policy is evaluated at all.
-grant select, insert, update on members to authenticated;
+grant select, insert, update on member to authenticated;
 
-create policy "members_select_own" on members
+create policy "member_select_own" on member
   for select
-  using (user_id = auth.uid());
+  using (id = auth.uid());
 
-create policy "members_select_region_coordinator" on members
+create policy "member_select_region_coordinator" on member
   for select
-  using (get_my_role() = 'regional_coordinator' and region = get_my_region());
+  using (get_my_role() = 'regional_coordinator' and region_id = get_my_region_id());
 
-create policy "members_select_all_national_admin" on members
+create policy "member_select_all_national_admin" on member
   for select
   using (get_my_role() = 'national_admin');
 
-create policy "members_update_own" on members
+create policy "member_update_own" on member
   for update
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using (id = auth.uid())
+  with check (id = auth.uid());
 
-create policy "members_update_all_national_admin" on members
+create policy "member_update_all_national_admin" on member
   for update
   using (get_my_role() = 'national_admin')
   with check (get_my_role() = 'national_admin');
@@ -122,6 +122,15 @@ create policy "members_update_all_national_admin" on members
 -- Real signups will insert via a security-definer trigger on auth.users (future
 -- work, part of the AuthRepository adapter) which bypasses RLS as the function
 -- owner. This policy only covers admin-driven inserts (e.g. adding a test member).
-create policy "members_insert_national_admin" on members
+create policy "member_insert_national_admin" on member
   for insert
   with check (get_my_role() = 'national_admin');
+
+-- region is static reference data like address_type/membership_level: readable
+-- by any authenticated user, not writable outside a migration for now.
+alter table region enable row level security;
+grant select on region to authenticated;
+
+create policy "region_select_all" on region
+  for select
+  using (true);

@@ -8,20 +8,20 @@ create extension if not exists pgtap with schema extensions;
 
 select plan(20);
 
--- Plain member (South East) sees only their own row across all three tables.
+-- Plain member (South East) sees only their own row across all four tables.
 set local role authenticated;
 set local request.jwt.claim.sub = 'a0000000-0000-0000-0000-000000000004';
 
 select is(
-  (select count(*) from members)::int,
+  (select count(*) from member)::int,
   1,
-  'member sees exactly one members row'
+  'member sees exactly one member row'
 );
 
 select is(
-  (select user_id from members limit 1)::text,
+  (select id from member limit 1)::text,
   'a0000000-0000-0000-0000-000000000004',
-  'the members row a member sees is their own'
+  'the member row a member sees is their own'
 );
 
 select is(
@@ -43,15 +43,15 @@ select is(
 );
 
 -- set_edited_metadata trigger: a no-op update still populates edited_at/edited_by.
-update members set region = region where user_id = 'a0000000-0000-0000-0000-000000000004';
+update member set region_id = region_id where id = 'a0000000-0000-0000-0000-000000000004';
 
 select ok(
-  (select edited_at from members where user_id = 'a0000000-0000-0000-0000-000000000004') is not null,
+  (select edited_at from member where id = 'a0000000-0000-0000-0000-000000000004') is not null,
   'edited_at is populated after an update'
 );
 
 select is(
-  (select edited_by from members where user_id = 'a0000000-0000-0000-0000-000000000004')::text,
+  (select edited_by from member where id = 'a0000000-0000-0000-0000-000000000004')::text,
   'a0000000-0000-0000-0000-000000000004',
   'edited_by reflects the acting user'
 );
@@ -60,13 +60,13 @@ select is(
 set local request.jwt.claim.sub = 'a0000000-0000-0000-0000-000000000002';
 
 select is(
-  (select count(*) from members)::int,
+  (select count(*) from member)::int,
   3,
   'south east coordinator sees exactly their region''s members'
 );
 
 select is(
-  (select count(*) from members where region = 'North West')::int,
+  (select count(*) from member where region_id = (select id from region where label = 'North West'))::int,
   0,
   'south east coordinator cannot see north west members'
 );
@@ -102,7 +102,7 @@ select is(
 );
 
 select is(
-  (select count(*) from membership_period where member_user_id = 'a0000000-0000-0000-0000-000000000003')::int,
+  (select count(*) from membership_period where member_id = 'a0000000-0000-0000-0000-000000000003')::int,
   0,
   'south east coordinator cannot see the north west coordinator''s membership_period'
 );
@@ -111,7 +111,7 @@ select is(
 set local request.jwt.claim.sub = 'a0000000-0000-0000-0000-000000000001';
 
 select is(
-  (select count(*) from members)::int,
+  (select count(*) from member)::int,
   6,
   'national admin sees all members across all regions'
 );
@@ -135,9 +135,9 @@ select is(
 );
 
 -- Exclusion constraint: a member cannot hold two overlapping membership_period rows.
-select throws_ok(
-  $$insert into membership_period (member_user_id, membership_level_id, effective_from, effective_to) values ('a0000000-0000-0000-0000-000000000004', 'family', '2026-06-01', '2027-05-31')$$,
-  '23P01',
+select throws_like(
+  $$insert into membership_period (member_id, membership_level_id, effective_from, effective_to) values ('a0000000-0000-0000-0000-000000000004', (select id from membership_level where label = 'Family'), '2026-06-01', '2027-05-31')$$,
+  '%exclusion constraint%',
   'overlapping membership_period for the same member is rejected'
 );
 
