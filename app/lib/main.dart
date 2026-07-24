@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'presentation/screens/member_profile_screen.dart';
+import 'presentation/screens/home_screen.dart';
+import 'presentation/theme/bds_theme.dart';
 
 // Local dev Supabase instance defaults (supabase start). Not secrets — these
 // are the well-known local dev anon key/URL. Should become environment
@@ -27,8 +28,8 @@ class BdsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'BDS',
-      theme: ThemeData(colorSchemeSeed: Colors.green, useMaterial3: true),
-      home: const _SignedInMemberProfile(),
+      theme: buildBdsTheme(),
+      home: const _SignedInHome(),
     );
   }
 }
@@ -36,14 +37,14 @@ class BdsApp extends StatelessWidget {
 /// Signs in as one of the local seed fixtures so there's a real authenticated
 /// session for RLS to scope against. Stands in for a real login screen, which
 /// is AuthRepository work — not part of this scaffold.
-class _SignedInMemberProfile extends StatefulWidget {
-  const _SignedInMemberProfile();
+class _SignedInHome extends StatefulWidget {
+  const _SignedInHome();
 
   @override
-  State<_SignedInMemberProfile> createState() => _SignedInMemberProfileState();
+  State<_SignedInHome> createState() => _SignedInHomeState();
 }
 
-class _SignedInMemberProfileState extends State<_SignedInMemberProfile> {
+class _SignedInHomeState extends State<_SignedInHome> {
   late final Future<String> _memberIdFuture = _signIn();
 
   Future<String> _signIn() async {
@@ -69,7 +70,7 @@ class _SignedInMemberProfileState extends State<_SignedInMemberProfile> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return MemberProfileScreen(memberId: snapshot.data!);
+        return HomeScreen(memberId: snapshot.data!);
       },
     );
   }
